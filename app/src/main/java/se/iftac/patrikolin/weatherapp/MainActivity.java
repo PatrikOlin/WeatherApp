@@ -9,11 +9,6 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.NodeList;
-import org.xml.sax.InputSource;
-import org.xml.sax.SAXException;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
@@ -23,10 +18,6 @@ import java.io.InputStream;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
-
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
@@ -94,6 +85,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         List<String> precipitationMinList = new ArrayList<>();
         List<String> precipitationMaxList = new ArrayList<>();
         List<String> cloudList = new ArrayList<>();
+        List<Integer> symbolList = new ArrayList<>();
 
         try {
             XmlPullParserFactory xmlFactoryObject = XmlPullParserFactory.newInstance();
@@ -133,23 +125,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                         else if(name.equalsIgnoreCase("symbol")) {
                             int number = Integer.parseInt(parser.getAttributeValue(null, "number"));
-                            switch (number){
-                                case 1:
-                                    weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.sunny));
-                                    break;
-                                case 2:
-                                    weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.cloudy));
-                                    break;
-                                case 3:
-                                    weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.cloudy));
-                                    break;
-                                case 4:
-                                    weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.cloudy));
-                                    break;
-                                default:
-                                    weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.windy));
-                                    break;
-                            }
+                            symbolList.add(number);
                         }
                         break;
                     case XmlPullParser.END_TAG:
@@ -164,10 +140,40 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             e.printStackTrace();
         }
 
-        temperature.setText("Temperature: " + temperatureList.get(0));
-        humidity.setText("Humidity: " + humidityList.get(0));
+        temperature.setText(temperatureList.get(0) + "\u2103");
+        humidity.setText("Humidity: " + humidityList.get(0) + "%");
         precipitation.setText("Precipitation: " + precipitationMinList.get(0) + " mm to " + precipitationMaxList.get(0) + " mm");
-        cloudiness.setText("Cloudiness: " + cloudList.get(0));
+        cloudiness.setText("Cloudiness: " + cloudList.get(0) + "%");
+
+        switch (symbolList.get(0)){
+            case 1:
+                weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.sunny));
+                break;
+            case 2:
+                weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.light_cloud));
+                break;
+            case 3:
+                weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.partly_cloudy));
+                break;
+            case 4:
+                weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.cloudy));
+                break;
+            case 5:
+                weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.light_rain_sun));
+                break;
+            case 10:
+                weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.rain));
+                break;
+            case 13:
+                weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.snow));
+                break;
+            case 15:
+                weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.fog));
+                break;
+            default:
+                weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.na));
+                break;
+        }
     }
 
 }
