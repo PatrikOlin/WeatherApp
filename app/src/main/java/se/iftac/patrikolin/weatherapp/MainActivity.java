@@ -1,8 +1,17 @@
 package se.iftac.patrikolin.weatherapp;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
+import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -19,14 +28,14 @@ import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+public class MainActivity extends AppCompatActivity {
 
     private TextView temperature;
     private TextView humidity;
     private TextView precipitation;
     private TextView cloudiness;
     private ImageView weatherIcon;
-    private Button refreshButton;
+    WeatherDataBroadcastReceiver broadcastReceiver = new WeatherDataBroadcastReceiver();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,44 +47,52 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         precipitation = findViewById(R.id.textViewPrecipitation);
         cloudiness = findViewById(R.id.textViewCloudiness);
         weatherIcon = findViewById(R.id.imageView);
-        refreshButton = findViewById(R.id.button);
-        refreshButton.setOnClickListener(this);
 
-        new getXmlFromServer().execute();
+        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
+        Boolean switchPref = sharedPref.getBoolean(SettingsActivity.KEY_PREF_SERVICE_SWITCH, false);
+
+        Intent intent = new Intent(this, WeatherDataService.class);
+        if(switchPref) {
+            startService(intent);
+            Toast.makeText(this, "Weather data service running", Toast.LENGTH_SHORT).show();
+        } else {
+            stopService(intent);
+            weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.na));
+            temperature.setText("N/A");
+            humidity.setText("No weather data available. Weather data service not running.");
+            Toast.makeText(this, "Weather data service is not running", Toast.LENGTH_SHORT).show();
+        }
     }
 
     @Override
-    public void onClick(View v) {
-        new getXmlFromServer().execute();
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.weather_menu, menu);
+        return true;
     }
 
-    class getXmlFromServer extends AsyncTask<String, Void, String> {
-
-        HttpHandler handler;
-
-        protected String doInBackground(String... strings) {
-            String url = "https://api.met.no/weatherapi/locationforecast/1.9/?lat=61.72;lon=17.10";
-            String res = "";
-
-            handler = new HttpHandler();
-            InputStream is = handler.callServer(url);
-            if(is != null) {
-                res = handler.streamToString(is);
-            } else {
-                res = "Not connected";
-            }
-            return res;
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.settings:
+                Intent intent = new Intent(this, SettingsActivity.class);
+                startActivity(intent);
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
         }
+    }
 
-        protected void onPostExecute(String result) {
-            super.onPostExecute(result);
+    @Override
+    public void onResume() {
+        super.onResume();
+        registerReceiver(broadcastReceiver, new IntentFilter("se.iftac.patrikolin.weatherapp.BROADCAST"));
+    }
 
-            if(result.equals("Not connected")) {
-                Toast.makeText(getApplicationContext(), "Connection error", Toast.LENGTH_SHORT).show();
-            } else {
-                parseXml(result);
-            }
-        }
+    @Override
+    public void onPause() {
+        unregisterReceiver(broadcastReceiver);
+        super.onPause();
     }
 
     public void parseXml(String xmlString) {
@@ -100,13 +117,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         if(name.equalsIgnoreCase("temperature")){
                             String temperatureValue = parser.getAttributeValue(null, "value");
                             temperatureList.add(temperatureValue);
-                            // temperature.setText("temp: " +  temperatureValue);
                         }
 
                         else if(name.equalsIgnoreCase("humidity")) {
                             String humidityValue = parser.getAttributeValue(null, "value");
                             humidityList.add(humidityValue);
-                            // humidity.setText("humidity: " + humidityValue + "%");
                         }
 
                         else if(name.equalsIgnoreCase("precipitation")) {
@@ -114,13 +129,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             String precipitationMaxValue = parser.getAttributeValue(null, "maxvalue");
                             precipitationMinList.add(precipitationMinValue);
                             precipitationMaxList.add(precipitationMaxValue);
-                            // / precipitation.setText("precipitation: " + precipitationMinValue + " mm to " + precipitationMaxValue + " mm");
                         }
 
                         else if(name.equalsIgnoreCase("cloudiness")) {
                             String cloudinessValue = parser.getAttributeValue(null, "percent");
                             cloudList.add(cloudinessValue);
-                            // cloudiness.setText("cloudiness: " + cloudinessValue + "%");
                         }
 
                         else if(name.equalsIgnoreCase("symbol")) {
@@ -173,6 +186,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             default:
                 weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.na));
                 break;
+        }
+    }
+
+    private class WeatherDataBroadcastReceiver extends BroadcastReceiver {
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String xmlString = intent.getStringExtra("forecasts");
+            parseXml(xmlString);
         }
     }
 
